@@ -2,6 +2,7 @@ import os
 import re
 import io
 import base64
+import requests
 from typing import Dict
 from fastapi import FastAPI, Request, Header, HTTPException
 from fastapi.responses import JSONResponse
@@ -14,6 +15,7 @@ from transformers import TrOCRProcessor, VisionEncoderDecoderModel
 API_KEY = "7777777"
 MODEL_DIR = "./trocr-large-printed"
 MODEL_NAME = "microsoft/trocr-large-printed"
+FINGERPRINT_SERVER_URL = "https://blsautomatedbysa7tout.onrender.com/api/check_fingerprint"
 
 def ensure_local_trocr_model(model_dir=MODEL_DIR, model_name=MODEL_NAME):
     required_files = [
@@ -41,18 +43,17 @@ model = model.to(device)
 
 app = FastAPI()
 
-# --- CORS FIX ---
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Or set to ["https://appointment.thespainvisa.com"] for more security
+    allow_origins=["https://appointment.thespainvisa.com"],  # Or set to ["https://appointment.thespainvisa.com"] for more security
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-# ---------------
 
 class ImagesRequest(BaseModel):
     images: Dict[str, str]  # index: base64 image string
+    fingerprint: str = None
 
 def decode_base64_image(data_url: str) -> Image.Image:
     if ',' in data_url:
@@ -78,12 +79,32 @@ async def solve_captcha(
     request: Request,
     apiKey: str = Header(None)
 ):
-    if apiKey != API_KEY:
-        raise HTTPException(status_code=401, detail="Invalid API key")
-
     try:
         data = await request.json()
         images_dict = data.get("images", {})
+        fingerprint = data.get("fingerprint", None)
+
+        # API key logic
+        if apiKey == API_KEY:
+            pass  # skip fingerprint check
+        elif not apiKey:
+            # Require fingerprint and check it
+            if not fingerprint:
+                return JSONResponse({"status": "error", "error": "Missing fingerprint"}, status_code=401)
+            # Call external fingerprint server
+            try:
+                resp = requests.post(
+                    FINGERPRINT_SERVER_URL,
+                    json={"fingerprint": fingerprint},
+                    timeout=10
+                )
+                if resp.status_code != 200 or not resp.json().get("authorized"):
+                    return JSONResponse({"status": "error", "error": "Fingerprint not authorized"}, status_code=403)
+            except Exception as e:
+                return JSONResponse({"status": "error", "error": f"Fingerprint check failed: {str(e)}"}, status_code=500)
+        else:
+            return JSONResponse({"status": "error", "error": "Invalid API key"}, status_code=401)
+
         if len(images_dict) != 9:
             return JSONResponse({"status": "error", "error": "Exactly 9 images required"}, status_code=400)
         images = []
