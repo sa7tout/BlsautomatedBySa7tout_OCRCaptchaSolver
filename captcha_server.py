@@ -12,9 +12,10 @@ import torch
 from transformers import TrOCRProcessor, VisionEncoderDecoderModel
 
 API_KEY = "7777777"
-MODEL_DIR = "./trocr-base-printed"
+MODEL_DIR = "./trocr-large-printed"
+MODEL_NAME = "microsoft/trocr-large-printed"
 
-def ensure_local_trocr_model(model_dir=MODEL_DIR):
+def ensure_local_trocr_model(model_dir=MODEL_DIR, model_name=MODEL_NAME):
     required_files = [
         "preprocessor_config.json",
         "config.json",
@@ -26,13 +27,13 @@ def ensure_local_trocr_model(model_dir=MODEL_DIR):
     ]
     if not os.path.isdir(model_dir) or not all(os.path.isfile(os.path.join(model_dir, f)) for f in required_files):
         print(f"Local model not found or incomplete in '{model_dir}'. Downloading from Hugging Face Hub...")
-        processor = TrOCRProcessor.from_pretrained('microsoft/trocr-base-printed')
+        processor = TrOCRProcessor.from_pretrained(model_name)
         processor.save_pretrained(model_dir)
-        model = VisionEncoderDecoderModel.from_pretrained('microsoft/trocr-base-printed')
+        model = VisionEncoderDecoderModel.from_pretrained(model_name)
         model.save_pretrained(model_dir)
         print("Model and processor downloaded and saved locally.")
 
-ensure_local_trocr_model(MODEL_DIR)
+ensure_local_trocr_model(MODEL_DIR, MODEL_NAME)
 processor = TrOCRProcessor.from_pretrained(MODEL_DIR)
 model = VisionEncoderDecoderModel.from_pretrained(MODEL_DIR)
 device = "cuda" if torch.cuda.is_available() else "cpu"
