@@ -147,7 +147,7 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://appointment.thespainvisa.com"],
+    allow_origins=["https://appointment.thespainvisa.com","https://mauritania.blsspainglobal.com"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
